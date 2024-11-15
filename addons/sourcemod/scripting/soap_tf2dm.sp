@@ -82,6 +82,9 @@ bool g_bDisableCabinet;
 Handle g_hOpenDoors;
 Handle g_hDisableCabinet;
 
+bool g_bDisableRespawnBarrier;
+Handle g_hDisableRespawnBarrier;
+
 // Health packs and ammo
 bool g_bDisableHealthPacks;
 bool g_bDisableAmmoPacks;
@@ -118,6 +121,9 @@ int g_bCanDownload;
 Regex g_normalizeMapRegex;
 bool g_bEnableFallbackConfig;
 Handle g_hEnableFallbackConfig;
+
+bool g_bDisableCFGDownloads;
+Handle g_hDisableCFGDownloads;
 
 
 // Entities to remove - don't worry! these all get reloaded on round start!
@@ -190,10 +196,12 @@ public void OnPluginStart()
     g_hKillAmmo             = CreateConVar("soap_kill_ammo", "1", "Enable ammo restoration on kills.", FCVAR_NOTIFY);
     g_hOpenDoors            = CreateConVar("soap_opendoors", "1", "Force all doors to open. Required on maps like cp_well.", FCVAR_NOTIFY);
     g_hDisableCabinet       = CreateConVar("soap_disablecabinet", "1", "Disables the resupply cabinets on map load", FCVAR_NOTIFY);
+	g_hDisableRespawnBarrier = CreateConVar("soap_disablerespawnbarrier", "1", "Disables the respawn barriers on map load", FCVAR_NOTIFY);
     g_hShowHP               = CreateConVar("soap_showhp", "1", "Print killer's health to victim on death.", FCVAR_NOTIFY);
     g_hForceTimeLimit       = CreateConVar("soap_forcetimelimit", "1", "Time limit enforcement, used to fix a never-ending round issue on gravelpit.", _, true, 0.0, true, 1.0);
     g_hDisableHealthPacks   = CreateConVar("soap_disablehealthpacks", "0", "Disables the health packs on map load.", FCVAR_NOTIFY);
     g_hDisableAmmoPacks     = CreateConVar("soap_disableammopacks", "0", "Disables the ammo packs on map load.", FCVAR_NOTIFY);
+	g_hDisableCFGDownloads  = CreateConVar("soap_disablecfgdownloads", "0", "Disables CFGs for map spawns downloading automatically.", FCVAR_NOTIFY);
     g_hNoVelocityOnSpawn    = CreateConVar("soap_novelocityonspawn", "1", "Prevents players from inheriting their velocity from previous lives when spawning thru SOAP.", FCVAR_NOTIFY);
     g_hDebugSpawns          = CreateConVar("soap_debugspawns", "0", "Set to 1 to draw boxes around spawn points when players spawn. Set to 2 to draw ALL spawn points constantly. For debugging.", FCVAR_NOTIFY, true, 0.0, true, 2.0);
     g_hEnableFallbackConfig = CreateConVar("soap_fallback_config", "1", "Enable falling back to spawns from other versions of the map if no spawns are configured for the current map.", FCVAR_NOTIFY);
@@ -215,10 +223,12 @@ public void OnPluginStart()
     HookConVarChange(g_hKillAmmo,             handler_ConVarChange);
     HookConVarChange(g_hOpenDoors,            handler_ConVarChange);
     HookConVarChange(g_hDisableCabinet,       handler_ConVarChange);
+	HookConVarChange(g_hDisableRespawnBarrier, handler_ConVarChange);
     HookConVarChange(g_hShowHP,               handler_ConVarChange);
     HookConVarChange(g_hForceTimeLimit,       handler_ConVarChange);
     HookConVarChange(g_hDisableHealthPacks,   handler_ConVarChange);
     HookConVarChange(g_hDisableAmmoPacks,     handler_ConVarChange);
+	HookConVarChange(g_hDisableCFGDownloads,  handler_ConVarChange);
     HookConVarChange(g_hNoVelocityOnSpawn,    handler_ConVarChange);
     HookConVarChange(g_hDebugSpawns,          handler_ConVarChange);
     HookConVarChange(g_hEnableFallbackConfig, handler_ConVarChange);
@@ -349,21 +359,28 @@ void InitSpawnSys()
     else
     {
         // we can try to download one
-        if (g_bCanDownload)
-        {
-            LogMessage("Map spawns missing. Map: %s. Trying to download...", map);
-            DownloadConfig();
-        }
-        // we can't try to download one
-        else
-        {
-            LogMessage("Map spawns missing. Map: %s. SteamWorks is not installed, we can't try to download them!", map);
-            // Try to load a fallback
-            if (GetConfigPath(map, path, sizeof(path)))
-            {
-                LoadMapConfig(map, path);
-            }
-        }
+		if (!g_bDisableCFGDownloads)
+		{
+			if (g_bCanDownload)
+			{
+				LogMessage("Map spawns missing. Map: %s. Trying to download...", map);
+				DownloadConfig();
+			}
+			// we can't try to download one
+			else
+			{
+				LogMessage("Map spawns missing. Map: %s. SteamWorks is not installed, we can't try to download them!", map);
+				// Try to load a fallback
+				if (GetConfigPath(map, path, sizeof(path)))
+				{
+					LoadMapConfig(map, path);
+				}
+			}
+		}
+		else
+		{
+			LogMessage("Map spawns missing. Map: %s. Downloads are currently disabled, we can't try to download them!", map);
+		}
     }
     // End spawn system.
 }
@@ -486,10 +503,12 @@ public void OnConfigsExecuted()
     g_bKillAmmo                 = GetConVarBool(g_hKillAmmo);
     g_bOpenDoors                = GetConVarBool(g_hOpenDoors);
     g_bDisableCabinet           = GetConVarBool(g_hDisableCabinet);
+	g_bDisableRespawnBarrier    = GetConVarBool(g_hDisableRespawnBarrier);
     g_bShowHP                   = GetConVarBool(g_hShowHP);
     g_bForceTimeLimit           = GetConVarBool(g_hForceTimeLimit);
     g_bDisableHealthPacks       = GetConVarBool(g_hDisableHealthPacks);
     g_bDisableAmmoPacks         = GetConVarBool(g_hDisableAmmoPacks);
+	g_bDisableCFGDownloads      = GetConVarBool(g_hDisableCFGDownloads);
 
     g_bNoVelocityOnSpawn        = GetConVarBool(g_hNoVelocityOnSpawn);
     g_iDebugSpawns              = GetConVarInt(g_hDebugSpawns);
@@ -668,6 +687,19 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
             ResetMap();
         }
     }
+	else if (convar == g_hDisableRespawnBarrier)
+    {
+        if (StringToInt(newValue) >= 1)
+        {
+            g_bDisableRespawnBarrier = true;
+            DoAllEnts();
+        }
+        else
+        {
+            g_bDisableRespawnBarrier = false;
+            ResetMap();
+        }
+    }
     else if (convar == g_hDisableHealthPacks)
     {
         if (StringToInt(newValue) >= 1)
@@ -692,6 +724,17 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
         {
             g_bDisableAmmoPacks = false;
             ResetMap();
+        }
+    }
+	else if (convar == g_hDisableCFGDownloads)
+    {
+        if (StringToInt(newValue) >= 1)
+        {
+            g_bDisableCFGDownloads = true;
+        }
+        else
+        {
+            g_bDisableCFGDownloads = false;
         }
     }
     else if (convar == g_hNoVelocityOnSpawn)
@@ -1816,7 +1859,7 @@ void DoEnt(int i, int entity)
         // if ent is a respawn room (allows for resupping!) AND cabinets are off, remove it. otherwise skip
         else if (StrContains(g_entIter[i], "func_respawnroom", false) != -1)
         {
-            if (g_bDisableCabinet)
+            if (g_bDisableRespawnBarrier)
             {
                 RemoveEntity(entity);
             }
