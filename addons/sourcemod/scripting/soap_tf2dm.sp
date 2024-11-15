@@ -142,7 +142,7 @@ char g_entIter[][] =
                                         //                if this is not acceptable for your use case, please open a github issue and i will address it, thank you!
     "func_regenerate",                  // DELETE       - deleting this ent is the only way to reliably prevent it from working in DM otherwise
     "func_respawnroom",                 // DELETE       - ^
-    "func_respawnroomvisualizer",       // DELETE       - ^
+    "func_respawnroomvisualizer",       // DELETE      - ^
     "item_healthkit_full",              // DELETE       - ^
     "item_healthkit_medium",            // DELETE       - ^
     "item_healthkit_small",             // DELETE       - ^
@@ -1856,7 +1856,7 @@ void DoEnt(int i, int entity)
                 RemoveEntity(entity);
             }
         }
-        // if ent is a respawn room (allows for resupping!) AND cabinets are off, remove it. otherwise skip
+		// if ent is a respawn barriers is off, disable it. otherwise skip
         else if (StrContains(g_entIter[i], "func_respawnroom", false) != -1)
         {
             if (g_bDisableRespawnBarrier)
