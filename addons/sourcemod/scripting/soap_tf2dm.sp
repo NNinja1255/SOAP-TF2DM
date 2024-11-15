@@ -166,9 +166,11 @@ public void OnPluginStart()
     g_bAFKSupported = LibraryExists("afk");
     g_bCanDownload  = GetExtensionFileStatus("SteamWorks.ext") == 1 ? true : false;
 
+	/*
     if (LibraryExists("updater")) {
         Updater_AddPlugin(UPDATE_URL);
     }
+	*/
 
     LoadTranslations("soap_tf2dm.phrases");
 
