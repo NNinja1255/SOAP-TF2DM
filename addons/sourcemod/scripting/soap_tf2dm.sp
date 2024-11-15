@@ -503,7 +503,7 @@ public void OnConfigsExecuted()
     char map[64];
     GetCurrentMapLowercase(map, sizeof(map));
 
-    ServerCommand("exec %s", map);
+    ServerCommand("exec %s.cfg", map);
 }
 
 
