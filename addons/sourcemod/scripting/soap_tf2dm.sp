@@ -162,7 +162,7 @@ public Plugin myinfo = {
  * -------------------------------------------------------------------------- */
 public void OnPluginStart()
 {
-    MC_PrintToChatAll(SOAP_TAG ... "Soap DM loaded.");
+    CPrintToChatAll(SOAP_TAG ... "Soap DM loaded.");
     g_bAFKSupported = LibraryExists("afk");
     g_bCanDownload  = GetExtensionFileStatus("SteamWorks.ext") == 1 ? true : false;
 
@@ -1007,7 +1007,7 @@ void DeleteCrazySpawnThisMap(float origin[3], int team, int rand)
     // don't delete this spawn if we're debugging spawns
     if (g_iDebugSpawns > 0)
     {
-        MC_PrintToChatAll(SOAP_TAG ... "soap_debugspawns is > 0, not deleting bad spawn at index %i pos %.2f %.2f %.2f", rand, origin[0], origin[1], origin[2]);
+        CPrintToChatAll(SOAP_TAG ... "soap_debugspawns is > 0, not deleting bad spawn at index %i pos %.2f %.2f %.2f", rand, origin[0], origin[1], origin[2]);
         return;
     }
 
@@ -1123,7 +1123,7 @@ void ShowSpawnFor(int team)
     // test if this spawn is even remotely sane
     if (TR_PointOutsideWorld(origin))
     {
-        MC_PrintToChatAll(SOAP_TAG ... "Spawn at %.2f %.2f %.2f is COMPLETELY outside the world!", origin[0], origin[1], origin[2]);
+        CPrintToChatAll(SOAP_TAG ... "Spawn at %.2f %.2f %.2f is COMPLETELY outside the world!", origin[0], origin[1], origin[2]);
     }
 
     // bottom left
@@ -1175,7 +1175,7 @@ void ShowSpawnFor(int team)
         // the trace hit the world!
         else
         {
-            MC_PrintToChatAll(SOAP_TAG ... "Spawn at %.2f %.2f %.2f clips into the world - needs more space!", origin[0], origin[1], origin[2]);
+            CPrintToChatAll(SOAP_TAG ... "Spawn at %.2f %.2f %.2f clips into the world - needs more space!", origin[0], origin[1], origin[2]);
         }
     }
 
@@ -1472,11 +1472,11 @@ public Action Event_player_death(Handle event, const char[] name, bool dontBroad
         {
             if (IsPlayerAlive(attacker))
             {
-                MC_PrintToChat(client, SOAP_TAG ... "%t", "Health Remaining", GetClientHealth(attacker));
+                CPrintToChat(client, SOAP_TAG ... "%t", "Health Remaining", GetClientHealth(attacker));
             }
             else
             {
-                MC_PrintToChat(client, SOAP_TAG ... "%t", "Attacker is dead");
+                CPrintToChat(client, SOAP_TAG ... "%t", "Attacker is dead");
             }
         }
 
@@ -1572,7 +1572,7 @@ public Action Event_player_death(Handle event, const char[] name, bool dontBroad
                 {
                     SetEntProp(player, Prop_Data, "m_iHealth", GetClientHealth(player) + dmg);
                 }
-                MC_PrintToChat(player, SOAP_TAG ... "%t", attacker == player ? "Kill HP Received" : "Damage HP Received", dmg, clientname);
+                CPrintToChat(player, SOAP_TAG ... "%t", attacker == player ? "Kill HP Received" : "Damage HP Received", dmg, clientname);
             }
         }
     }
@@ -1764,7 +1764,7 @@ void ResetMap()
     SetConVarInt(FindConVar("mp_restartgame_immediate"), 1);
     // remove waiting for players time
     SetConVarInt(FindConVar("mp_waitingforplayers_time"), 0);
-    MC_PrintToChatAll(SOAP_TAG ... "Resetting map.");
+    CPrintToChatAll(SOAP_TAG ... "Resetting map.");
 }
 
 // func to iterate thru all ents and act on them with DoEnt()
@@ -2131,7 +2131,7 @@ public void OnSteamWorksHTTPComplete(Handle hRequest, bool bFailure, bool bReque
  * -------------------------------------------------------------------------- */
 public void OnPluginEnd()
 {
-    MC_PrintToChatAll(SOAP_TAG ... "Soap DM unloaded.");
+    CPrintToChatAll(SOAP_TAG ... "Soap DM unloaded.");
 }
 
 public bool GetConfigPath(const char[] map, char[] path, int maxlength)
@@ -2174,7 +2174,7 @@ public bool GetConfigPath(const char[] map, char[] path, int maxlength)
     if (foundMatch)
     {
         LogMessage("No configuration found for %s, loading fallback configuration from %s.", map, foundFile);
-        MC_PrintToChatAll(SOAP_TAG ... "No configuration found for %s, loading fallback configuration from %s.", map, foundFile);
+        CPrintToChatAll(SOAP_TAG ... "No configuration found for %s, loading fallback configuration from %s.", map, foundFile);
         return true;
     }
     else

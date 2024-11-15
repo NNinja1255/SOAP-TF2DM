@@ -1,3 +1,4 @@
+
 #if defined _cURL_included
   #endinput
 #endif
@@ -125,6 +126,7 @@ enum SendRecv_Act {
 enum Openssl_Hash {
 	Openssl_Hash_MD5 = 0,
 	Openssl_Hash_MD4,
+	Openssl_Hash_MD2,
 	Openssl_Hash_SHA,
 	Openssl_Hash_SHA1,
 	Openssl_Hash_SHA224,
@@ -147,10 +149,10 @@ enum Openssl_Hash {
  * @ param any		data		Data passed to curl_easy_perform_thread()
  * @ noreturn
  */
-typeset CURL_OnComplete
+funcenum CURL_OnComplete
 {
-	function void(Handle hndl, CURLcode code);
-	function void(Handle hndl, CURLcode code, any data);
+	public(Handle:hndl, CURLcode: code),
+	public(Handle:hndl, CURLcode: code , any:data),
 };
 
 /**
@@ -161,10 +163,10 @@ typeset CURL_OnComplete
  * @ param any		data				Data passed to curl_easy_send_recv()
  * @ return 								SendRecv_Act
  */
-typeset CURL_OnSend
+funcenum CURL_OnSend
 {
-	function SendRecv_Act(Handle hndl, CURLcode code, const int last_sent_dataSize);
-	function SendRecv_Act(Handle hndl, CURLcode code, const int last_sent_dataSize, any data);
+	SendRecv_Act:public(Handle:hndl, CURLcode: code, const last_sent_dataSize),
+	SendRecv_Act:public(Handle:hndl, CURLcode: code, const last_sent_dataSize, any:data),
 }
 
 /**
@@ -175,10 +177,10 @@ typeset CURL_OnSend
  * @ param any		data		Data passed to curl_easy_send_recv()
  * @ return 						SendRecv_Act
  */
-typeset CURL_OnReceive
+funcenum CURL_OnReceive
 {
-	function SendRecv_Act(Handle hndl, CURLcode code, const char[] receiveData, int dataSize);
-	function SendRecv_Act(Handle hndl, CURLcode code, const char[] receiveData, int dataSize, any data);
+	SendRecv_Act:public(Handle:hndl, CURLcode: code, const String:receiveData[], const dataSize),
+	SendRecv_Act:public(Handle:hndl, CURLcode: code, const String:receiveData[], const dataSize, any:data),
 }
 
 /**
@@ -188,22 +190,22 @@ typeset CURL_OnReceive
  * @ param any		data		Data passed to Openssl_Hash_file()
  * @ noreturn
  */
-typeset Openssl_Hash_Complete
+funcenum Openssl_Hash_Complete
 {
-	function void(const bool success, const char[] buffer);
-	function void(const bool success, const char[] buffer, any data);
+	public(const bool:success, const String:buffer[]),
+	public(const bool:success, const String:buffer[], any:data),
 }
 
 
-typeset CURL_Function_CB
+funcenum CURL_Function_CB
 {
 	// CURLOPT_WRITEFUNCTION
-	function void(Handle hndl, const char[] buffer, int bytes, int nmemb);
-	function void(Handle hndl, const char[] buffer, int bytes, int nmemb, any data);
+	public(Handle:hndl, const String:buffer[], const bytes, const nmemb),
+	public(Handle:hndl, const String:buffer[], const bytes, const nmemb, any:data),
 	
 	// CURLOPT_READFUNCTION
-	function void(Handle hndl, int bytes, int nmemb);
-	function void(Handle hndl, int bytes, int nmemb, any data);
+	public(Handle:hndl, const bytes, const nmemb),
+	public(Handle:hndl, const bytes, const nmemb, any:data),
 }
 
 /*************************************************************************************************/
@@ -215,7 +217,7 @@ typeset CURL_Function_CB
  * Create a curl handle
  * @ return Handle				The curl handle. Returns INVALID_HANDLE on failure
  */
-native Handle curl_easy_init();
+native Handle:curl_easy_init();
 
 /**
  * Set a curl option for CURLOPTTYPE_OBJECTPOINT type
@@ -225,7 +227,7 @@ native Handle curl_easy_init();
  * @ param String		buffer	The value to set the option to.
  * @ return bool				1 on success. 0 = The option not accept string or unsupport.
  */
-native bool curl_easy_setopt_string(Handle hndl, CURLoption opt, char []buffer);
+native bool:curl_easy_setopt_string(Handle:hndl, CURLoption:opt, const any:buffer[]);
 
 /**
  * Set a curl option for CURLOPTTYPE_LONG type
@@ -235,7 +237,7 @@ native bool curl_easy_setopt_string(Handle hndl, CURLoption opt, char []buffer);
  * @ param cell_t		value	The value to set the option to.
  * @ return bool				1 on success. 0 = The option not accept integer or unsupport.
  */
-native bool curl_easy_setopt_int(Handle hndl, CURLoption opt, int value);
+native bool:curl_easy_setopt_int(Handle:hndl, CURLoption:opt, value);
 
 /**
  * Set a curl option for CURLOPTTYPE_LONG type
@@ -250,7 +252,7 @@ native bool curl_easy_setopt_int(Handle hndl, CURLoption opt, int value);
  * @ param cell_t		array_size	The array size.
  * @ return bool					1 on success. 0 = The option not accept integer or unsupport.
  */
-native bool curl_easy_setopt_int_array(Handle hndl, int [][]array, int array_size);
+native bool:curl_easy_setopt_int_array(Handle:hndl, array[][2], array_size);
 
 /**
  * Set a curl option for CURLOPTTYPE_OFF_T type
@@ -260,7 +262,7 @@ native bool curl_easy_setopt_int_array(Handle hndl, int [][]array, int array_siz
  * @ param String		buffer	The value to set the option to.
  * @ return bool				1 on success. 0 = The option not accept string or unsupport.
  */
-native bool curl_easy_setopt_int64(Handle hndl, CURLoption opt, const char []buffer);
+native bool:curl_easy_setopt_int64(Handle:hndl, CURLoption:opt, const String:buffer[]);
 
 /**
  * Set a curl option for CURLOPTTYPE_OBJECTPOINT type
@@ -274,7 +276,7 @@ native bool curl_easy_setopt_int64(Handle hndl, CURLoption opt, const char []buf
  * @ param Handle		other_hndl	The other handle to set the option to.
  * @ return bool					1 on success. 0 = The option not accept string or unsupport.
  */
-native bool curl_easy_setopt_handle(Handle hndl, CURLoption opt, Handle other_hndl);
+native bool:curl_easy_setopt_handle(Handle:hndl, CURLoption:opt, Handle:other_hndl);
 
 /**
  * Set a curl option for CURLOPTTYPE_FUNCTIONPOINT type
@@ -285,7 +287,7 @@ native bool curl_easy_setopt_handle(Handle hndl, CURLoption opt, Handle other_hn
  * @ param cell_t				value		Value to set.
  * @ return bool							1 on success. 0 = The option unsupport or invalid callback function.
  */
-native bool curl_easy_setopt_function(Handle hndl, CURLoption opt, CURL_Function_CB callback, any value=0);
+native bool:curl_easy_setopt_function(Handle:hndl, CURLoption:opt, CURL_Function_CB:callback, any:value=0);
 
 /**
  * Load all CURLoption to curl Handle
@@ -295,13 +297,13 @@ native bool curl_easy_setopt_function(Handle hndl, CURLoption opt, CURL_Function
  * 		Only can use one time for each curl handle
  * @ return 		The CURLcode code, see cURL_header.inc
  */
-native CURLcode curl_load_opt(Handle hndl);
+native CURLcode:curl_load_opt(Handle:hndl);
 
 /**
  * Perform a file transfer
  * @ return 		The CURLcode code, see cURL_header.inc
  */
-native CURLcode curl_easy_perform(Handle hndl);
+native CURLcode:curl_easy_perform(Handle:hndl);
 
 /**
  * Perform a file transfer, using thread
@@ -310,7 +312,7 @@ native CURLcode curl_easy_perform(Handle hndl);
  * @ param cell_t			value				Value to set.
  * @ noreturn
  */
-native void curl_easy_perform_thread(Handle hndl, CURL_OnComplete perform_callback, any value=0);
+native curl_easy_perform_thread(Handle:hndl, CURL_OnComplete:perform_callback, any:value=0);
 
 /**
  * Create a send & receive function for a connected curl handle
@@ -325,7 +327,7 @@ native void curl_easy_perform_thread(Handle hndl, CURL_OnComplete perform_callba
  * @ param cell_t			value				Value to set.
  * @ noreturn
  */
-native void curl_easy_send_recv(Handle hndl, CURL_OnSend send_callback, CURL_OnReceive receive_callback, CURL_OnComplete complete_callback, SendRecv_Act act, int send_timeout, int recv_timeout, int recv_buffer_Size = 1024, any value=0);
+native curl_easy_send_recv(Handle:hndl, CURL_OnSend:send_callback, CURL_OnReceive:receive_callback, CURL_OnComplete:complete_callback, SendRecv_Act:act, send_timeout, recv_timeout, recv_buffer_Size = 1024, any:value=0);
 
 /**
  * Send a signal to a send & receive curl handle 
@@ -333,14 +335,14 @@ native void curl_easy_send_recv(Handle hndl, CURL_OnSend send_callback, CURL_OnR
  * @ param SendRecv_Act		act				The SendRecv_Act action after the singal
  * @ return bool							1 on success. 0 = not a curl_easy_send_recv() curl, or not running/waiting
  */
-native bool curl_send_recv_Signal(Handle hndl, SendRecv_Act act);
+native bool:curl_send_recv_Signal(Handle:hndl, SendRecv_Act:act);
 
 /**
  * Check send & receive curl handle is Waiting or not
  * @ param Handle			hndl			The handle of the send & receive curl to be used.
  * @ return bool		1 = is waiting. 0 = not a curl_easy_send_recv() curl, or not running/waiting
  */
-native bool curl_send_recv_IsWaiting(Handle hndl);
+native bool:curl_send_recv_IsWaiting(Handle:hndl);
 
 /**
  * Send the send buffer for send & receive curl handle
@@ -349,7 +351,7 @@ native bool curl_send_recv_IsWaiting(Handle hndl);
  * @ param cell_t			size			if specified the \0 terminator will not be included
  * @ noreturn
  */
-native void curl_set_send_buffer(Handle hndl, const char []data, int size=-1);
+native curl_set_send_buffer(Handle:hndl, const String:data[], size=-1);
 
 /**
  * Send the receive data size for send & receive curl handle
@@ -357,7 +359,7 @@ native void curl_set_send_buffer(Handle hndl, const char []data, int size=-1);
  * @ param cell_t			size			The receive size
  * @ noreturn
  */
-native void curl_set_receive_size(Handle hndl, int size);
+native curl_set_receive_size(Handle:hndl, size);
 
 /**
  * Set send timeout for curl_easy_send_recv()
@@ -365,7 +367,7 @@ native void curl_set_receive_size(Handle hndl, int size);
  * @ param cell_t			timeout			How long will try to send data before it timeout (milliseconds).
  * @ noreturn
  */
-native void curl_set_send_timeout(Handle hndl, int timeout);
+native curl_set_send_timeout(Handle:hndl, timeout);
 
 /**
  * Set receive timeout for curl_easy_send_recv()
@@ -373,7 +375,7 @@ native void curl_set_send_timeout(Handle hndl, int timeout);
  * @ param cell_t			timeout			How long will try to receive data before it timeout (milliseconds).
  * @ noreturn
  */
-native void curl_set_recv_timeout(Handle hndl, int timeout);
+native curl_set_recv_timeout(Handle:hndl, timeout);
 
 /**
  * Get CURLOPT_ERRORBUFFER error string in curl handle
@@ -382,7 +384,7 @@ native void curl_set_recv_timeout(Handle hndl, int timeout);
  * @ param cell_t		maxlen		Destination buffer length (includes null terminator).
  * @ noreturn
  */
-native void curl_get_error_buffer(Handle hndl, char []buffer, int maxlen);
+native curl_get_error_buffer(Handle:hndl, String:buffer[], maxlen);
 
 /**
  * Extract information from a curl handle. (CURLINFO_STRING only)
@@ -392,7 +394,7 @@ native void curl_get_error_buffer(Handle hndl, char []buffer, int maxlen);
  * @ param cell_t		maxlen		Destination buffer length (includes null terminator).
  * @ return 						The CURLcode code, see cURL_header.inc
  */
-native CURLcode curl_easy_getinfo_string(Handle hndl, CURLINFO info, char []buffer, int maxlen);
+native CURLcode:curl_easy_getinfo_string(Handle:hndl, CURLINFO:info, String:buffer[], maxlen);
 
 /**
  * Extract information from a curl handle. (CURLINFO_LONG, CURLINFO_DOUBLE only)
@@ -401,7 +403,7 @@ native CURLcode curl_easy_getinfo_string(Handle hndl, CURLINFO info, char []buff
  * @ param 				value		Variable to store the value.
  * @ return 						The CURLcode code, see cURL_header.inc
  */
-native CURLcode curl_easy_getinfo_int(Handle hndl, CURLINFO info, any &value);
+native CURLcode:curl_easy_getinfo_int(Handle:hndl, CURLINFO:info, &any:value);
 
 /**
  * URL encodes the given string 
@@ -411,7 +413,7 @@ native CURLcode curl_easy_getinfo_int(Handle hndl, CURLINFO info, any &value);
  * @ param cell_t		maxlen		Destination buffer length (includes null terminator).
  * @ return 						1 on success.
  */
-native bool curl_easy_escape(Handle hndl, const char []url, char []buffer, int maxlen);
+native bool:curl_easy_escape(Handle:hndl, const String:url[], String:buffer[], maxlen);
 
 /**
  * URL decodes the given string 
@@ -421,7 +423,7 @@ native bool curl_easy_escape(Handle hndl, const char []url, char []buffer, int m
  * @ param cell_t		maxlen		Destination buffer length (includes null terminator).
  * @ return 						The output length.
  */
-native int curl_easy_unescape(Handle hndl, const char []url, char []buffer, int maxlen);
+native curl_easy_unescape(Handle:hndl, const String:url[], String:buffer[], maxlen);
 
 /**
  * Return string describing error code
@@ -430,7 +432,7 @@ native int curl_easy_unescape(Handle hndl, const char []url, char []buffer, int 
  * @ param cell_t		maxlen		Destination buffer length (includes null terminator).
  * @ noreturn
  */
-native void curl_easy_strerror(CURLcode code, char []buffer, int maxlen);
+native curl_easy_strerror(CURLcode: code, String:buffer[], maxlen);
 
 /**
  * Returns the libcurl version string
@@ -438,7 +440,7 @@ native void curl_easy_strerror(CURLcode code, char []buffer, int maxlen);
  * @ param cell_t		maxlen		Destination buffer length (includes null terminator).
  * @ noreturn
  */
-native void curl_version(char []buffer, int maxlen);
+native curl_version(String:buffer[], maxlen);
 
 /**
  * Returns the libcurl supported protocols string
@@ -446,13 +448,13 @@ native void curl_version(char []buffer, int maxlen);
  * @ param cell_t		maxlen		Destination buffer length (includes null terminator).
  * @ noreturn
  */
-native void curl_protocols(char []buffer, int maxlen);
+native curl_protocols(String:buffer[], maxlen);
 
 /**
  * Returns the libcurl supported features
  * @ return			The currently features bits. see CURL_VERSION_*
  */
-native int curl_features();
+native curl_features();
 
 /**
  * This funcitopn same as Sourcemod OpenFile()
@@ -470,7 +472,7 @@ native int curl_features();
  * @ param mode			Open mode.
  * @ return				A Handle to the file, INVALID_HANDLE on open error.
  */
-native Handle curl_OpenFile(const char []file, const char []mode);
+native Handle:curl_OpenFile(const String:file[], const String:mode[]);
 
 
 /**
@@ -482,7 +484,7 @@ native Handle curl_OpenFile(const char []file, const char []mode);
  *
  * @ return				A Handle to the curl_httppost, INVALID_HANDLE on error.
  */
-native Handle curl_httppost();
+native Handle:curl_httppost();
 
 /**
  * Add a section to a multipart/formdata HTTP POST
@@ -493,7 +495,7 @@ native Handle curl_httppost();
  * @ param 				...			Variable number of format parameters.
  * @ return 						The CURLFORMcode code, see cURL_header.inc
  */
-native CURLFORMcode curl_formadd(Handle handl, any ...);
+native CURLFORMcode:curl_formadd(Handle:handl, any:...);
 
 /**
  * Create a curl_slist struct
@@ -512,7 +514,7 @@ native CURLFORMcode curl_formadd(Handle handl, any ...);
  *
  * @ return				A Handle to the curl_slist, INVALID_HANDLE on error.
  */
-native Handle curl_slist();
+native Handle:curl_slist();
 
 /**
  *  Add a string to an slist
@@ -520,7 +522,7 @@ native Handle curl_slist();
  * @ param String		buffer		The string to add
  * @ noreturn
  */
-native void curl_slist_append(Handle hndl, const char []buffer);
+native curl_slist_append(Handle:hndl, const String:buffer[]);
 
 /**
  * Hash a file
@@ -530,7 +532,7 @@ native void curl_slist_append(Handle hndl, const char []buffer);
  * @ param cell_t					value				Value to set.
  * @ noreturn
  */
-native curl_hash_file(const char []file, Openssl_Hash algorithm, Openssl_Hash_Complete complete_callback, any value=0);
+native curl_hash_file(const String:file[], Openssl_Hash:algorithm, Openssl_Hash_Complete:complete_callback, any:value=0);
 
 /**
  * Hash a string
@@ -541,13 +543,13 @@ native curl_hash_file(const char []file, Openssl_Hash algorithm, Openssl_Hash_Co
  * @ param cell_t			maxlen			Destination buffer length (includes null terminator).
  * @ return									1 on success
  */
-native bool curl_hash_string(const char []input, int dataSize, Openssl_Hash algorithm, char []buffer, int maxlength);
+native bool:curl_hash_string(const String:input[], dataSize, Openssl_Hash:algorithm, String:buffer[], maxlength);
 
 
 /**
  * Do not edit below this line!
  */
-public Extension __ext_curl = 
+public Extension:__ext_curl = 
 {
 	name = "curl",
 	file = "curl.ext",
