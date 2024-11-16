@@ -122,7 +122,7 @@ Regex g_normalizeMapRegex;
 bool g_bEnableFallbackConfig;
 Handle g_hEnableFallbackConfig;
 
-bool g_bDisableCFGDownloads;
+//bool g_bDisableCFGDownloads;
 Handle g_hDisableCFGDownloads;
 
 
@@ -359,7 +359,7 @@ void InitSpawnSys()
     else
     {
         // we can try to download one
-		if (!g_bDisableCFGDownloads)
+		if (!GetConVarBool(g_hDisableCFGDownloads)) //!g_bDisableCFGDownloads
 		{
 			if (g_bCanDownload)
 			{
@@ -508,7 +508,7 @@ public void OnConfigsExecuted()
     g_bForceTimeLimit           = GetConVarBool(g_hForceTimeLimit);
     g_bDisableHealthPacks       = GetConVarBool(g_hDisableHealthPacks);
     g_bDisableAmmoPacks         = GetConVarBool(g_hDisableAmmoPacks);
-	g_bDisableCFGDownloads      = GetConVarBool(g_hDisableCFGDownloads);
+	//g_bDisableCFGDownloads      = GetConVarBool(g_hDisableCFGDownloads);
 
     g_bNoVelocityOnSpawn        = GetConVarBool(g_hNoVelocityOnSpawn);
     g_iDebugSpawns              = GetConVarInt(g_hDebugSpawns);
@@ -726,7 +726,7 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
             ResetMap();
         }
     }
-	else if (convar == g_hDisableCFGDownloads)
+	/*else if (convar == g_hDisableCFGDownloads)
     {
         if (StringToInt(newValue) >= 1)
         {
@@ -736,7 +736,7 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
         {
             g_bDisableCFGDownloads = false;
         }
-    }
+    }*/
     else if (convar == g_hNoVelocityOnSpawn)
     {
         if (StringToInt(newValue) >= 1)
