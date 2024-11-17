@@ -85,6 +85,9 @@ Handle g_hDisableCabinet;
 bool g_bDisableRespawnBarrier;
 Handle g_hDisableRespawnBarrier;
 
+bool g_bStopRoundTime;
+Handle g_hStopRoundTime;
+
 // Health packs and ammo
 bool g_bDisableHealthPacks;
 bool g_bDisableAmmoPacks;
@@ -201,6 +204,7 @@ public void OnPluginStart()
     g_hNoVelocityOnSpawn    = CreateConVar("soap_novelocityonspawn", "1", "Prevents players from inheriting their velocity from previous lives when spawning thru SOAP.", FCVAR_NOTIFY);
     g_hDebugSpawns          = CreateConVar("soap_debugspawns", "0", "Set to 1 to draw boxes around spawn points when players spawn. Set to 2 to draw ALL spawn points constantly. For debugging.", FCVAR_NOTIFY, true, 0.0, true, 2.0);
     g_hEnableFallbackConfig = CreateConVar("soap_fallback_config", "1", "Enable falling back to spawns from other versions of the map if no spawns are configured for the current map.", FCVAR_NOTIFY);
+	g_hStopRoundTime        = CreateConVar("soap_stoproundtime", "1", "Disables the round timers. This should only be set to 0 if you are using different plugin to disable the timers.", FCVAR_NOTIFY);
 
     // for determining whether to delete arena entities or not
     mp_tournament           = FindConVar("mp_tournament");
@@ -227,6 +231,7 @@ public void OnPluginStart()
     HookConVarChange(g_hNoVelocityOnSpawn,    handler_ConVarChange);
     HookConVarChange(g_hDebugSpawns,          handler_ConVarChange);
     HookConVarChange(g_hEnableFallbackConfig, handler_ConVarChange);
+    HookConVarChange(g_hStopRoundTime,            handler_ConVarChange);
 
     HookEvent("player_death", Event_player_death);
     HookEvent("player_hurt", Event_player_hurt);
@@ -496,6 +501,7 @@ public void OnConfigsExecuted()
     g_bForceTimeLimit           = GetConVarBool(g_hForceTimeLimit);
     g_bDisableHealthPacks       = GetConVarBool(g_hDisableHealthPacks);
     g_bDisableAmmoPacks         = GetConVarBool(g_hDisableAmmoPacks);
+	g_bStopRoundTime            = GetConVarBool(g_hStopRoundTime);
 
     g_bNoVelocityOnSpawn        = GetConVarBool(g_hNoVelocityOnSpawn);
     g_iDebugSpawns              = GetConVarInt(g_hDebugSpawns);
@@ -710,6 +716,19 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
         else
         {
             g_bDisableAmmoPacks = false;
+            ResetMap();
+        }
+    }
+	else if (convar == g_hStopRoundTime)
+    {
+        if (StringToInt(newValue) >= 1)
+        {
+            g_bStopRoundTime = true;
+            OpenDoors();
+        }
+        else
+        {
+            g_bStopRoundTime = false;
             ResetMap();
         }
     }
@@ -1860,10 +1879,10 @@ void DoEnt(int i, int entity)
         // we don't remove / disable because both cause issues/bugs otherwise
         else if (StrContains(g_entIter[i], "trigger_capture", false) != -1)
         {
-            float hell[3] = {0.0, 0.0, -5000.0};
+            float hell[3] = {0.0, 0.0, -20000.0}; // I changed the value to be lower than what can be accessed in the hammer editor. :P
             TeleportEntity(entity, hell, NULL_VECTOR, NULL_VECTOR);
         }
-        else if (StrContains(g_entIter[i], "team_round_timer", false) != -1)
+        else if (g_bStopRoundTime && StrContains(g_entIter[i], "team_round_timer", false) != -1)
         {
             char map[64];
             GetCurrentMapLowercase(map, sizeof(map));
@@ -1886,7 +1905,7 @@ void DoEnt(int i, int entity)
         }
         */
         // disable every other found matching ent instead of deleting, deleting certain logic/team timer ents is unneeded and can crash servers
-        else
+        else if (!(g_bStopRoundTime && StrContains(g_entIter[i], "team_round_timer", false) != -1))
         {
             AcceptEntityInput(entity, "Disable");
         }
