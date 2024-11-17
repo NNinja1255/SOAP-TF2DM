@@ -122,9 +122,6 @@ Regex g_normalizeMapRegex;
 bool g_bEnableFallbackConfig;
 Handle g_hEnableFallbackConfig;
 
-bool g_bDisableCFGDownloads;
-Handle g_hDisableCFGDownloads;
-
 
 // Entities to remove - don't worry! these all get reloaded on round start!
 char g_entIter[][] =
@@ -201,7 +198,6 @@ public void OnPluginStart()
     g_hForceTimeLimit       = CreateConVar("soap_forcetimelimit", "1", "Time limit enforcement, used to fix a never-ending round issue on gravelpit.", _, true, 0.0, true, 1.0);
     g_hDisableHealthPacks   = CreateConVar("soap_disablehealthpacks", "0", "Disables the health packs on map load.", FCVAR_NOTIFY);
     g_hDisableAmmoPacks     = CreateConVar("soap_disableammopacks", "0", "Disables the ammo packs on map load.", FCVAR_NOTIFY);
-	g_hDisableCFGDownloads  = CreateConVar("soap_disablecfgdownloads", "0", "Disables CFGs for map spawns downloading automatically.", FCVAR_NOTIFY);
     g_hNoVelocityOnSpawn    = CreateConVar("soap_novelocityonspawn", "1", "Prevents players from inheriting their velocity from previous lives when spawning thru SOAP.", FCVAR_NOTIFY);
     g_hDebugSpawns          = CreateConVar("soap_debugspawns", "0", "Set to 1 to draw boxes around spawn points when players spawn. Set to 2 to draw ALL spawn points constantly. For debugging.", FCVAR_NOTIFY, true, 0.0, true, 2.0);
     g_hEnableFallbackConfig = CreateConVar("soap_fallback_config", "1", "Enable falling back to spawns from other versions of the map if no spawns are configured for the current map.", FCVAR_NOTIFY);
@@ -228,7 +224,6 @@ public void OnPluginStart()
     HookConVarChange(g_hForceTimeLimit,       handler_ConVarChange);
     HookConVarChange(g_hDisableHealthPacks,   handler_ConVarChange);
     HookConVarChange(g_hDisableAmmoPacks,     handler_ConVarChange);
-	HookConVarChange(g_hDisableCFGDownloads,  handler_ConVarChange);
     HookConVarChange(g_hNoVelocityOnSpawn,    handler_ConVarChange);
     HookConVarChange(g_hDebugSpawns,          handler_ConVarChange);
     HookConVarChange(g_hEnableFallbackConfig, handler_ConVarChange);
@@ -312,6 +307,9 @@ public void OnMapStart() {
     {
         SetFailState("Cowardly refusing to load SOAP DM on an MGE map.");
     }
+	
+	// init our spawn system
+    InitSpawnSys();
 
     // Load the sound file played when a player is spawned.
     PrecacheSound("items/spawn_item.wav", true);
@@ -356,27 +354,20 @@ void InitSpawnSys()
     else
     {
         // we can try to download one
-		if (!g_bDisableCFGDownloads)
+		if (g_bCanDownload)
 		{
-			if (g_bCanDownload)
-			{
-				LogMessage("Map spawns missing. Map: %s. Trying to download...", map);
-				DownloadConfig();
-			}
-			// we can't try to download one
-			else
-			{
-				LogMessage("Map spawns missing. Map: %s. SteamWorks is not installed, we can't try to download them!", map);
-				// Try to load a fallback
-				if (GetConfigPath(map, path, sizeof(path)))
-				{
-					LoadMapConfig(map, path);
-				}
-			}
+			LogMessage("Map spawns missing. Map: %s. Trying to download...", map);
+			DownloadConfig();
 		}
+		// we can't try to download one
 		else
 		{
-			LogMessage("Map spawns missing. Map: %s. Downloads are currently disabled, we can't try to download them!", map);
+			LogMessage("Map spawns missing. Map: %s. SteamWorks is not installed, we can't try to download them!", map);
+			// Try to load a fallback
+			if (GetConfigPath(map, path, sizeof(path)))
+			{
+				LoadMapConfig(map, path);
+			}
 		}
     }
     // End spawn system.
@@ -505,10 +496,6 @@ public void OnConfigsExecuted()
     g_bForceTimeLimit           = GetConVarBool(g_hForceTimeLimit);
     g_bDisableHealthPacks       = GetConVarBool(g_hDisableHealthPacks);
     g_bDisableAmmoPacks         = GetConVarBool(g_hDisableAmmoPacks);
-	g_bDisableCFGDownloads      = GetConVarBool(g_hDisableCFGDownloads);
-	
-	// init our spawn system
-    InitSpawnSys(); // I moved this here since it was being called before the convars were set.
 
     g_bNoVelocityOnSpawn        = GetConVarBool(g_hNoVelocityOnSpawn);
     g_iDebugSpawns              = GetConVarInt(g_hDebugSpawns);
@@ -726,17 +713,6 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
             ResetMap();
         }
     }
-	else if (convar == g_hDisableCFGDownloads)
-    {
-        if (StringToInt(newValue) >= 1)
-        {
-            g_bDisableCFGDownloads = true;
-        }
-        else
-        {
-            g_bDisableCFGDownloads = false;
-        }
-    }
     else if (convar == g_hNoVelocityOnSpawn)
     {
         if (StringToInt(newValue) >= 1)
@@ -858,7 +834,7 @@ void CreateTimeCheck() {
         g_tCheckTimeLeft = null;
     }
 
-    g_tCheckTimeLeft = CreateTimer(5.0, CheckTime, _, TIMER_REPEAT);
+    g_tCheckTimeLeft = CreateTimer(5.0, CheckTime, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
 /*
@@ -1401,7 +1377,7 @@ public Action Regen(Handle timer, int clientid) {
         }
 
         // Call this function again in g_fRegenTick seconds.
-        g_hRegenTimer[client] = CreateTimer(g_fRegenTick, Regen, clientid);
+        g_hRegenTimer[client] = CreateTimer(g_fRegenTick, Regen, clientid, TIMER_FLAG_NO_MAPCHANGE);
     }
 
     return Plugin_Continue;
@@ -1445,7 +1421,7 @@ void StartStopRecentDamagePushbackTimer()
     {
         if (g_hRecentDamageTimer == null)
         {
-            g_hRecentDamageTimer = CreateTimer(1.0, Timer_RecentDamagePushback, _, TIMER_REPEAT);
+            g_hRecentDamageTimer = CreateTimer(1.0, Timer_RecentDamagePushback, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
         }
     }
     else
@@ -1648,7 +1624,7 @@ public Action Event_player_hurt(Handle event, const char[] name, bool dontBroadc
             g_hRegenTimer[client] = null;
         }
 
-        g_hRegenTimer[client] = CreateTimer(g_fRegenDelay, StartRegen, clientid);
+        g_hRegenTimer[client] = CreateTimer(g_fRegenDelay, StartRegen, clientid, TIMER_FLAG_NO_MAPCHANGE);
         g_iRecentDamage[client][attacker][0] += damage;
     }
 
@@ -1670,7 +1646,7 @@ public Action Event_player_spawn(Handle event, const char[] name, bool dontBroad
         g_hRegenTimer[client] = null;
     }
 
-    g_hRegenTimer[client] = CreateTimer(0.1, StartRegen, clientid);
+    g_hRegenTimer[client] = CreateTimer(0.1, StartRegen, clientid, TIMER_FLAG_NO_MAPCHANGE);
 
     if (!IsValidClient(client))
     {
@@ -2130,18 +2106,6 @@ void DownloadConfig()
 {
 	char map[64];
     GetCurrentMapLowercase(map, sizeof(map));
-	
-	if (g_bDisableCFGDownloads)
-	{
-		// Wait, we weren't supposed to be called, bail
-		LogMessage("Attempted to download config while downloading was disabled, bailing.", map);
-		
-		char path[256];
-		BuildPath(Path_SM, path, sizeof(path), "configs/soap/%s.cfg", map);
-		
-		LoadMapConfig(map, path);
-		return;
-	}
 
     char url[256];
     Format(url, sizeof(url), "https://raw.githubusercontent.com/sapphonie/SOAP-TF2DM/master/addons/sourcemod/configs/soap/%s.cfg", map);
