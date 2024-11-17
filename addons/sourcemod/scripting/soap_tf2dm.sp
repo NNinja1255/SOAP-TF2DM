@@ -122,7 +122,7 @@ Regex g_normalizeMapRegex;
 bool g_bEnableFallbackConfig;
 Handle g_hEnableFallbackConfig;
 
-//bool g_bDisableCFGDownloads;
+bool g_bDisableCFGDownloads;
 Handle g_hDisableCFGDownloads;
 
 
@@ -313,9 +313,6 @@ public void OnMapStart() {
         SetFailState("Cowardly refusing to load SOAP DM on an MGE map.");
     }
 
-    // init our spawn system
-    InitSpawnSys();
-
     // Load the sound file played when a player is spawned.
     PrecacheSound("items/spawn_item.wav", true);
 
@@ -359,7 +356,7 @@ void InitSpawnSys()
     else
     {
         // we can try to download one
-		if (!GetConVarBool(g_hDisableCFGDownloads)) //!g_bDisableCFGDownloads
+		if (!g_bDisableCFGDownloads)
 		{
 			if (g_bCanDownload)
 			{
@@ -508,7 +505,10 @@ public void OnConfigsExecuted()
     g_bForceTimeLimit           = GetConVarBool(g_hForceTimeLimit);
     g_bDisableHealthPacks       = GetConVarBool(g_hDisableHealthPacks);
     g_bDisableAmmoPacks         = GetConVarBool(g_hDisableAmmoPacks);
-	//g_bDisableCFGDownloads      = GetConVarBool(g_hDisableCFGDownloads);
+	g_bDisableCFGDownloads      = GetConVarBool(g_hDisableCFGDownloads);
+	
+	// init our spawn system
+    InitSpawnSys(); // I moved this here since it was being called before the convars were set.
 
     g_bNoVelocityOnSpawn        = GetConVarBool(g_hNoVelocityOnSpawn);
     g_iDebugSpawns              = GetConVarInt(g_hDebugSpawns);
@@ -726,7 +726,7 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
             ResetMap();
         }
     }
-	/*else if (convar == g_hDisableCFGDownloads)
+	else if (convar == g_hDisableCFGDownloads)
     {
         if (StringToInt(newValue) >= 1)
         {
@@ -736,7 +736,7 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
         {
             g_bDisableCFGDownloads = false;
         }
-    }*/
+    }
     else if (convar == g_hNoVelocityOnSpawn)
     {
         if (StringToInt(newValue) >= 1)
@@ -2128,8 +2128,20 @@ int GetRealClientCount()
 
 void DownloadConfig()
 {
-    char map[64];
+	char map[64];
     GetCurrentMapLowercase(map, sizeof(map));
+	
+	if (g_bDisableCFGDownloads)
+	{
+		// Wait, we weren't supposed to be called, bail
+		LogMessage("Attempted to download config while downloading was disabled, bailing.", map);
+		
+		char path[256];
+		BuildPath(Path_SM, path, sizeof(path), "configs/soap/%s.cfg", map);
+		
+		LoadMapConfig(map, path);
+		return;
+	}
 
     char url[256];
     Format(url, sizeof(url), "https://raw.githubusercontent.com/sapphonie/SOAP-TF2DM/master/addons/sourcemod/configs/soap/%s.cfg", map);
