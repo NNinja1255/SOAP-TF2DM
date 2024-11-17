@@ -136,6 +136,7 @@ char g_entIter[][] =
     "logic_auto",                       // DISABLE      - ^
     "logic_relay",                      // DISABLE      - ^
     "item_teamflag",                    // DISABLE      - ^
+	"func_capturezone",                 // DISABLE      - ^
     "trigger_capture_area",             // TELEPORT     - we tele these ents under the map by 5000 units to disable them - otherwise, huds bug out occasionally
     "tf_logic_arena",                   // DELETE*      - need to delete these, otherwise fight / spectate bullshit shows up on arena maps
                                         //                set mp_tournament to 1 to prevent this, since nuking the ents permanently breaks arena mode, for some dumb tf2 reason
@@ -1882,18 +1883,21 @@ void DoEnt(int i, int entity)
             float hell[3] = {0.0, 0.0, -20000.0}; // I changed the value to be lower than what can be accessed in the hammer editor. :P
             TeleportEntity(entity, hell, NULL_VECTOR, NULL_VECTOR);
         }
-        else if (g_bStopRoundTime && StrContains(g_entIter[i], "team_round_timer", false) != -1)
+        else if (StrContains(g_entIter[i], "team_round_timer", false) != -1)
         {
-            char map[64];
-            GetCurrentMapLowercase(map, sizeof(map));
-            if (StrContains(map, "pass_", false) != -1)
-            {
-                LogMessage("Not disabling passtime team_round_timer to avoid crashes.");
-            }
-            else
-            {
-                AcceptEntityInput(entity, "Disable");
-            }
+			if (g_bStopRoundTime)
+			{
+				char map[64];
+				GetCurrentMapLowercase(map, sizeof(map));
+				if (StrContains(map, "pass_", false) != -1)
+				{
+					LogMessage("Not disabling passtime team_round_timer to avoid crashes.");
+				}
+				else
+				{
+					AcceptEntityInput(entity, "Disable");
+				}
+			}
         }
         /* kill the pass time ball - TODO: this does nothing. why. why is passtime.
         else if (StrContains(g_entIter[i], "info_passtime_ball_spawn", false) != -1)
@@ -1905,7 +1909,7 @@ void DoEnt(int i, int entity)
         }
         */
         // disable every other found matching ent instead of deleting, deleting certain logic/team timer ents is unneeded and can crash servers
-        else if (!(g_bStopRoundTime && StrContains(g_entIter[i], "team_round_timer", false) != -1))
+        else
         {
             AcceptEntityInput(entity, "Disable");
         }
