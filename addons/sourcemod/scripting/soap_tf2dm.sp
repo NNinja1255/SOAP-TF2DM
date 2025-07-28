@@ -1334,6 +1334,24 @@ public Action Respawn(Handle timer, int clientid)
     return Plugin_Continue;
 }
 
+/* RespawnIfDead()
+ *
+ * Respawns a player on a delay ONLY if they are dead.
+ * -------------------------------------------------------------------------- */
+public Action RespawnIfDead(Handle timer, int clientid)
+{
+    int client = GetClientOfUserId(clientid);
+
+    if (!IsValidClient(client) || IsPlayerAlive(client))
+    {
+        return Plugin_Continue;
+    }
+
+    TF2_RespawnPlayer(client);
+
+    return Plugin_Continue;
+}
+
 /*
  * ------------------------------------------------------------------
  *      ____
@@ -1481,7 +1499,7 @@ public Action Event_player_death(Handle event, const char[] name, bool dontBroad
         return Plugin_Continue;
     }
 
-    CreateTimer(g_fSpawn, Respawn, clientid, TIMER_FLAG_NO_MAPCHANGE);
+    CreateTimer(g_fSpawn, RespawnIfDead, clientid, TIMER_FLAG_NO_MAPCHANGE);
 
     int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 
