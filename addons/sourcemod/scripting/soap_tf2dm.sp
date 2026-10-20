@@ -21,7 +21,7 @@
 // ====[ CONSTANTS ]===================================================
 #define PLUGIN_NAME         "SOAP TF2 Deathmatch"
 #define PLUGIN_AUTHOR       "Icewind, MikeJS, Lange, Tondark - maintained by sappho.io"
-#define PLUGIN_VERSION      "4.4.8"
+#define PLUGIN_VERSION      "4.5.0b"
 #define PLUGIN_CONTACT      "https://steamcommunity.com/id/icewind1991, https://sappho.io"
 #define UPDATE_URL          "https://raw.githubusercontent.com/sapphonie/SOAP-TF2DM/master/updatefile.txt"
 
@@ -42,7 +42,7 @@ Handle g_hRegenTimer[MAXPLAYERS+1];
 Handle g_hRegenHP;
 Handle g_hRegenTick;
 Handle g_hRegenDelay;
-Handle g_hKillStartRegen;
+Handle g_hRegenOnKill;
 
 // Spawning
 bool g_bSpawnRandom;
@@ -106,8 +106,9 @@ int g_iDebugSpawns;
 Handle Timer_ShowSpawns;
 int te_modelidx;
 
-// mp_tourney convar
+// mp_tourney convars
 Handle mp_tournament;
+Handle mp_tournament_readymode;
 
 // Regen damage given on kill
 #define RECENT_DAMAGE_SECONDS 10
@@ -187,7 +188,7 @@ public void OnPluginStart()
     g_hRegenHP              = CreateConVar("soap_regenhp", "1", "Health added per regeneration tick. Set to 0 to disable.", FCVAR_NOTIFY);
     g_hRegenTick            = CreateConVar("soap_regentick", "0.1", "Delay between regeration ticks.", FCVAR_NOTIFY);
     g_hRegenDelay           = CreateConVar("soap_regendelay", "5.0", "Seconds after damage before regeneration.", FCVAR_NOTIFY);
-    g_hKillStartRegen       = CreateConVar("soap_kill_start_regen", "1", "Start the heal-over-time regen immediately after a kill.", FCVAR_NOTIFY);
+    g_hRegenOnKill          = CreateConVar("soap_regen_on_kill", "0", "Start heal-over-time regen immediately after a kill. Replaces soap_kill_start_regen - cvar renamed and defaulted to 0 to maintain existing behavior.", FCVAR_NOTIFY);
     g_hSpawn                = CreateConVar("soap_spawn_delay", "1.5", "Spawn timer.", FCVAR_NOTIFY);
     g_hSpawnRandom          = CreateConVar("soap_spawnrandom", "1", "Enable random spawns.", FCVAR_NOTIFY);
     g_hTeamSpawnRandom      = CreateConVar("soap_teamspawnrandom", "0", "Enable random spawns independent of team", FCVAR_NOTIFY);
@@ -209,12 +210,13 @@ public void OnPluginStart()
 
     // for determining whether to delete arena entities or not
     mp_tournament           = FindConVar("mp_tournament");
+    mp_tournament_readymode = FindConVar("mp_tournament_readymode");
 
     // Hook convar changes and events
     HookConVarChange(g_hRegenHP,              handler_ConVarChange);
     HookConVarChange(g_hRegenTick,            handler_ConVarChange);
     HookConVarChange(g_hRegenDelay,           handler_ConVarChange);
-    HookConVarChange(g_hKillStartRegen,       handler_ConVarChange);
+    HookConVarChange(g_hRegenOnKill,          handler_ConVarChange);
     HookConVarChange(g_hSpawn,                handler_ConVarChange);
     HookConVarChange(g_hSpawnRandom,          handler_ConVarChange);
     HookConVarChange(g_hTeamSpawnRandom,      handler_ConVarChange);
@@ -262,8 +264,6 @@ public void OnPluginStart()
     GetRealClientCount();
 
     OnConfigsExecuted();
-
-    te_modelidx = PrecacheModel("effects/beam_generic_2.vmt", true);
 }
 
 public void OnLibraryAdded(const char[] name)
@@ -320,6 +320,10 @@ public void OnMapStart() {
     // Load the sound file played when a player is spawned.
     PrecacheSound("items/spawn_item.wav", true);
 
+    // precache this tempent all the time - it gets cleared off during mapchanges
+    // so if we just do it in OnPluginStart() we get a stale idx
+    te_modelidx = PrecacheModel("effects/beam_generic_2.vmt", true);
+
     // Begin the time check that prevents infinite rounds on A/D and KOTH maps.
     CreateTimeCheck();
 }
@@ -332,9 +336,6 @@ void InitSpawnSys()
     // get rid of any spawns we might have
     ClearArray(g_hRedSpawns);
     ClearArray(g_hBluSpawns);
-    // make new ones. size of 6 because origin * 3 + angles * 3
-    g_hRedSpawns = CreateArray(6);
-    g_hBluSpawns = CreateArray(6);
 
     g_bSpawnMap = false;
 
@@ -352,6 +353,7 @@ void InitSpawnSys()
     BuildPath(Path_SM, path, sizeof(path), "configs/soap/%s.cfg", map);
 
     // we got a local copy
+    // note this is case sensitive on linux 
     if (FileExists(path))
     {
         LoadMapConfig(map, path);
@@ -487,9 +489,10 @@ public void OnConfigsExecuted()
     g_iRegenHP                  = GetConVarInt(g_hRegenHP);
     g_fRegenTick                = GetConVarFloat(g_hRegenTick);
     g_fRegenDelay               = GetConVarFloat(g_hRegenDelay);
-    g_bKillStartRegen           = GetConVarBool(g_hKillStartRegen);
+    g_bKillStartRegen           = GetConVarBool(g_hRegenOnKill);
     g_fSpawn                    = GetConVarFloat(g_hSpawn);
     g_bSpawnRandom              = GetConVarBool(g_hSpawnRandom);
+    g_bTeamSpawnRandom          = GetConVarBool(g_hTeamSpawnRandom);
     g_fKillHealRatio            = GetConVarFloat(g_hKillHealRatio);
     g_fDamageHealRatio          = GetConVarFloat(g_hDamageHealRatio);
     StartStopRecentDamagePushbackTimer();
@@ -536,9 +539,13 @@ public void OnClientConnected(int client) {
     // Reset the player's damage given/received to 0.
     ResetPlayerDmgBasedRegen(client, true);
 
-    // Kills the annoying 30 second "waiting for players" at the start of a map.
-    //ServerCommand("mp_waitingforplayers_cancel 1");
-    SetConVarInt(FindConVar("mp_waitingforplayers_time"), 0);
+    // Kills the annoying 30 second "waiting for players" at the start of a map,
+    // but only when mp_tournament_readymode is disabled — setting this to 0 while
+    // readymode is on permanently bypasses the ready-up phase, making it non-functional.
+    if (!GetConVarBool(mp_tournament_readymode))
+    {
+        SetConVarInt(FindConVar("mp_waitingforplayers_time"), 0);
+    }
 }
 
 /* OnClientDisconnect()
@@ -572,7 +579,7 @@ public void handler_ConVarChange(Handle convar, const char[] oldValue, const cha
     {
         g_fRegenDelay = StringToFloat(newValue);
     }
-    else if (convar == g_hKillStartRegen)
+    else if (convar == g_hRegenOnKill)
     {
         if (StringToInt(newValue) >= 1)
         {
@@ -1329,6 +1336,23 @@ public Action Respawn(Handle timer, int clientid)
         return Plugin_Continue;
     }
 
+    // a half zatoichi decapitation removes the victim's katana ~2s (TF_DEATH_ANIMATION_TIME) after death
+    // we respawn faster than that, so TF2 keeps the doomed katana on respawn and the player loses it right after
+    // remove it ourselves while they're still dead, so TF2 gives them a fresh one. see issue #61
+    if (!IsPlayerAlive(client))
+    {
+        int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
+        if (melee != -1)
+        {
+            char classname[64];
+            GetEntityClassname(melee, classname, sizeof(classname));
+            if (StrEqual(classname, "tf_weapon_katana"))
+            {
+                TF2_RemoveWeaponSlot(client, TFWeaponSlot_Melee);
+            }
+        }
+    }
+
     TF2_RespawnPlayer(client);
 
     return Plugin_Continue;
@@ -1602,7 +1626,7 @@ public Action Event_player_death(Handle event, const char[] name, bool dontBroad
 
         // Give the killer regen-over-time if so configured.
         if (g_bKillStartRegen && !g_bRegen[attacker]) {
-            StartRegen(null, attacker);
+            StartRegen(null, GetClientUserId(attacker));
         }
     }
 
@@ -2073,7 +2097,7 @@ void FixNearbyDoorRelatedThings(int ent)
 void ResetPlayers() {
     int id;
     if (FirstLoad == true) {
-        for (int i = 0; i < MaxClients; i++) {
+        for (int i = 1; i <= MaxClients; i++) {
             if (IsValidClient(i)) {
                 id = GetClientUserId(i);
                 CreateTimer(g_fSpawn, Respawn, id, TIMER_FLAG_NO_MAPCHANGE);
@@ -2082,7 +2106,7 @@ void ResetPlayers() {
 
         FirstLoad = false;
     } else {
-        for (int i = 0; i < MaxClients; i++) {
+        for (int i = 1; i <= MaxClients; i++) {
             if (IsValidClient(i)) {
                 id = GetClientUserId(i);
                 CreateTimer(0.1, StartRegen, id, TIMER_FLAG_NO_MAPCHANGE);
@@ -2218,6 +2242,11 @@ public bool GetConfigPath(const char[] map, char[] path, int maxlength)
     BuildPath(Path_SM, path, maxlength, "configs/soap");
     LogMessage("path %s", path);
     DirectoryListing dh = OpenDirectory(path);
+    // should never happen
+    if (dh == null)
+    {
+        return false;
+    }
     char file[128];
     char foundFile[128];
     bool foundMatch = false;
@@ -2232,6 +2261,7 @@ public bool GetConfigPath(const char[] map, char[] path, int maxlength)
             foundMatch = true;
         }
     }
+    delete dh;
 
     if (foundMatch)
     {
@@ -2252,9 +2282,8 @@ void GetCurrentMapLowercase(char[] map, int sizeofMap)
     GetCurrentMap(map, sizeofMap);
 
     // TF2 is case-insensitive when dealing with map names
-    for (int i = 0; i < sizeof(sizeofMap); ++i)
+    for (int i = 0; (i < sizeofMap && map[i] != 0x0); ++i)
     {
         map[i] = CharToLower(map[i]);
     }
-
 }
